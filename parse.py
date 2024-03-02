@@ -16,6 +16,9 @@ def arg_help():
 class Unk:
     pass 
 
+class EOL:
+    pass
+
 class Symb:
     pass
 
@@ -28,7 +31,7 @@ class Var(Symb):
 class Label:
     pass
 
-class LVTS(Label, Var, Type, Symb):
+class LVTS(Label, Var, Type, Symb, EOL):
     pass
 
 # class EOL:
@@ -55,10 +58,10 @@ def VarSymbLabel(type):
         return Type
     elif type == "label":
         return Label
-    elif type == "unknown":
+    elif type == "EOL":
+        return EOL
+    else :
         return Unk
-    # elif type == "EOL":
-    #     return EOL
 def printVarSymbLabel(type):
     if type == Symb:
         return "Symb"
@@ -70,46 +73,46 @@ def printVarSymbLabel(type):
         return "Type"
     elif type == Unk:
         return "Unk"
-    # elif type == EOL:
-    #     return "EOL"
+    elif type == EOL:
+        return "EOL"
 
 INSTRUCTIONS: dict[str, list[LVTS]] = {
-    "MOVE": [Var, Symb],
-    "CREATEFRAME": [],
-    "PUSHFRAME": [],
-    "POPFRAME": [],
-    "DEFVAR": [Var],
-    "CALL": [Label],
-    "RETURN": [],
-    "PUSHS": [Symb],
-    "POPS": [Var],
-    "ADD": [Var, Symb, Symb],
-    "SUB": [Var, Symb, Symb],
-    "MUL": [Var, Symb, Symb],
-    "IDIV": [Var, Symb, Symb],
-    "LT": [Var, Symb, Symb],
-    "GT": [Var, Symb, Symb],
-    "EQ": [Var, Symb, Symb],
-    "AND": [Var, Symb, Symb],
-    "OR": [Var, Symb, Symb],
-    "NOT": [Var, Symb],
-    "INT2CHAR": [Var, Symb],
-    "STRI2INT": [Var, Symb, Symb],
-    "READ": [Var, Type], # zmen symb na type
-    "WRITE": [Symb],
-    "CONCAT": [Var, Symb, Symb],
-    "STRLEN": [Var, Symb],
-    "GETCHAR": [Var, Symb, Symb],
-    "SETCHAR": [Var, Symb, Symb],
-    "TYPE": [Var, Symb],
-    "LABEL": [Label],
-    "JUMP": [Label],
-    "JUMPIFEQ": [Label, Symb, Symb],
-    "JUMPIFNEQ": [Label, Symb, Symb],
-    "EXIT": [Symb],
-    "DPRINT": [Symb],
-    "BREAK": [],
-    # "EOL": []
+    "MOVE": [Var, Symb, EOL],
+    "CREATEFRAME": [EOL],
+    "PUSHFRAME": [EOL],
+    "POPFRAME": [EOL],
+    "DEFVAR": [Var, EOL],
+    "CALL": [Label, EOL],
+    "RETURN": [EOL],
+    "PUSHS": [Symb, EOL],
+    "POPS": [Var, EOL],
+    "ADD": [Var, Symb, Symb, EOL],
+    "SUB": [Var, Symb, Symb, EOL],
+    "MUL": [Var, Symb, Symb, EOL],
+    "IDIV": [Var, Symb, Symb, EOL],
+    "LT": [Var, Symb, Symb, EOL],
+    "GT": [Var, Symb, Symb, EOL],
+    "EQ": [Var, Symb, Symb, EOL],
+    "AND": [Var, Symb, Symb, EOL],
+    "OR": [Var, Symb, Symb, EOL],
+    "NOT": [Var, Symb, EOL],
+    "INT2CHAR": [Var, Symb, EOL],
+    "STRI2INT": [Var, Symb, Symb, EOL],
+    "READ": [Var, Type, EOL],
+    "WRITE": [Symb, EOL],
+    "CONCAT": [Var, Symb, Symb, EOL],
+    "STRLEN": [Var, Symb, EOL],
+    "GETCHAR": [Var, Symb, Symb, EOL],
+    "SETCHAR": [Var, Symb, Symb, EOL],
+    "TYPE": [Var, Symb, EOL],
+    "LABEL": [Label, EOL],
+    "JUMP": [Label, EOL],
+    "JUMPIFEQ": [Label, Symb, Symb, EOL],
+    "JUMPIFNEQ": [Label, Symb, Symb, EOL],
+    "EXIT": [Symb, EOL],
+    "DPRINT": [Symb, EOL],
+    "BREAK": [EOL],
+    "EOL": []
 }
 
 def main():
@@ -126,14 +129,14 @@ def main():
     cleaned_text = re.sub(r"#.*?$", '', file, flags=re.MULTILINE)
 
     # Extract tokens from cleaned text
-    tokens = re.findall(r"\S+", cleaned_text) # pridaj eol na to aby si zistil ci je len jedna instrukcia na riadok
+    tokens = re.findall(r"\S+|\n", cleaned_text) # pridaj eol na to aby si zistil ci je len jedna instrukcia na riadok
 
 
     for token_data in tokens:
         token = Token(token_data, "")  # Create a Token instance for each token
         set_type(token)  # Set the type for the token
         array.append(token)
-    # array.append(Token("\n", "EOL"))
+    array.append(Token("\n", "EOL"))
 
     # for token in array:
     #     print(token.printAtr())
@@ -146,10 +149,10 @@ def set_type(token):
     if re.match(r"(?:bool@(true|false))", token.data):
         token.data = token.data.split("@")[1] #uchova substring po @
         token.type = "bool"
-    elif re.match(r"(?:string@((?:\\[0-9]{3}|[^\n\t #]|)+))", token.data):
+    elif re.fullmatch(r"(?:string@(?:\\(?:[0-9]{3}|[^0-9\\]|\\$)|[^\\])*)", token.data):
         token.data = token.data.split("@")[1] #uchova substring po @
         token.type = "string"
-    elif re.match(r"(?:(nil@(nil)))", token.data):
+    elif re.fullmatch(r"(?:(nil@(nil)))", token.data):
         token.data = token.data.split("@")[1] #uchova substring po @
         token.type = "nil"
     elif re.match(r"(?:int@([+-]?[0-9]+))", token.data):
@@ -217,7 +220,7 @@ def set_type(token):
         token.type = "SETCHAR"
     elif token.data.upper() == "TYPE":
         token.type = "TYPE"
-    elif token.data.upper() == "LABEL":
+    elif token.data == "LABEL":
         token.type = "LABEL"
     elif token.data.upper() == "JUMP":
         token.type = "JUMP"
@@ -241,8 +244,8 @@ def set_type(token):
         token.type = "type"
     elif re.match(r"(?:[a-zA-Z0-9_\-$&%*!?])", token.data):
         token.type = "label"
-    # elif token.data == "\n":
-    #     token.type = "EOL"
+    elif token.data == "\n":
+        token.type = "EOL"
     else:
         token.type = "unknown"
 
@@ -256,13 +259,18 @@ def parser(token_array):
     i = 0
     j = 0
     order = 1
-    if token_array[0].type != "header" :
+    while token_array[i].type == "EOL":
+        i += 1
+
+    if token_array[i].type != "header" :
         return 21
+    # if token_array[0].type != "header" :
+    #     return 21
     # elif token_array[1].type == "unknown":
     #     return 22
     
-    token_array.pop(0)
-    # token_array.pop(0) # remove the EOL token
+    token_array.pop(i)
+    token_array.pop(i) # remove the EOL token
 
     while i < len(token_array):
         if token_array[i].type not in INSTRUCTIONS:
@@ -273,16 +281,20 @@ def parser(token_array):
             return 23
         excepted_tokens = INSTRUCTIONS[token_array[i].type]
         # vytvoris elemment pre danu instrukciu
-        instruction = ET.SubElement(root, "instruction")
-        instruction.set("order", str(order))
-        instruction.set("opcode", token_array[i].type)
+        if token_array[i].type != "EOL":
+            instruction = ET.SubElement(root, "instruction")
+            instruction.set("order", str(order))
+            instruction.set("opcode", token_array[i].type)
+            order += 1
         i += 1 # proc to tu je dpc ????
         while j < len(excepted_tokens):
+            # print("array position i and j " ,i , j)
             if i >= len(token_array): # malo argumentov
                 return 23
-            arg = ET.SubElement(instruction, "arg" + str(j+1))
-            arg.set("type", token_array[i].type)
-            arg.text = token_array[i].data
+            if token_array[i].type != "EOL":
+                arg = ET.SubElement(instruction, "arg" + str(j+1))
+                arg.set("type", token_array[i].type)
+                arg.text = token_array[i].data
             # budes udavat argumenty danej instrukcii
             # if type(VarSymbLabel(token_array[i].type)) !=  type(excepted_tokens[j]):
             if (VarSymbLabel(token_array[i].type) != excepted_tokens[j]) and not(issubclass(VarSymbLabel(token_array[i].type), excepted_tokens[j])):
@@ -305,7 +317,7 @@ def parser(token_array):
             # if j > len(excepted_tokens) and token_array[i].type != "\n":
             #     return 23
         j = 0
-        order += 1
+        # order += 1
     xml_str = ET.tostring(root, encoding='utf-8')
     prettified_xml = prettify_xml(xml_str)
     with open("output.xml", "wb") as output_file:  # Use binary mode for writing
