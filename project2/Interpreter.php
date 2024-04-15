@@ -1,7 +1,6 @@
 <?php
 namespace IPP\Student;
 
-use Exception;
 use IPP\Core\AbstractInterpreter;
 use IPP\Core\ReturnCode;
 use IPP\Student\FileSort;
@@ -9,225 +8,183 @@ use IPP\Student\Lable;
 use IPP\Student\Arguments;
 use IPP\Student\Instruction;
 
+use IPP\Student\ExceptionExtended\InvalidSourceException;
+
 class Interpreter extends AbstractInterpreter
 {
 
     public function execute(): int
     {
         $dom = $this->source->getDOMDocument();
-        $fileSort = new FileSort();
+        // creating instance of instruction class
         $instruction = new Instruction($this->settings);
-        
-        try{
-            $instructionArray = $fileSort->SortByOrder($dom);
-            $lable = new Lable($instructionArray);
-        }
-        catch (Exception $e) 
-        {
-            echo "Error: " . $e->getMessage() . PHP_EOL;
-            return $e->getCode();
-        } 
+        // sorting file by order saving it as an array
+        $instructionArray = FileSort::SortByOrder($dom);
+        // getting lables and theyr positions from sorted file
+        $lable = new Lable($instructionArray);
 
-        for ($i=0; $i < count($instructionArray); $i++)
+        // parsing all instructions in instruction array
+        for ($i=0; $i < count($instructionArray);)
         {
+            // getting arguments of the instruction
             $argsArray = New Arguments($instructionArray[$i]);
+            // getting name of the instruction
+            $opcode    = $instructionArray[$i]->getAttribute('opcode');
+            // echo '--------------------------------------------------------------' . PHP_EOL;
+            // echo "Position counter: $instruction->positionCounter\n";
+            // echo "Instruction: $opcode\n";
 
-            try{
-                $opcode = $instructionArray[$i]->getAttribute('opcode');
-                $instruction->incrementPositionCounter();
+            // switch for various instructions (strtoupper beacause of case insensitivity)
+            switch (strtoupper($opcode)) {
+                // filling arguments by documentation
+                //  -each function has specified amount of arguments 
+                case 'DEFVAR': 
+                    $instruction->DEFVAR($argsArray->getArgAtIndex(0)['value']);
+                    break;
                 
-                // echo "Instruction: $opcode\n";
-                // echo "Position counter: $this->postionCounter\n";
+                case 'CREATEFRAME': 
+                    $instruction->CREATEFRAME();
+                    break;
 
-                switch (strtoupper($opcode)) {
-                    case 'DEFVAR':
-                        // // $argsArray = $this->getArgs($instructionArray[$i]);
-                        $instruction->DEFVAR($argsArray->getArgAtIndex(0)['value']);
-                        break;
-                    
-                    case 'CREATEFRAME':
-                        // // $argsArray = $this->getArgs($instructionArray[$i]);
-                        $instruction->CREATEFRAME();
-                        break;
+                case 'PUSHFRAME': 
+                    $instruction->PUSHFRAME();
+                    break;
+                
+                case 'POPFRAME': 
+                    $instruction->POPFRAME();
+                    break;
 
-                    case 'PUSHFRAME':
-                        // // $argsArray = $this->getArgs($instructionArray[$i]);
-                        $instruction->PUSHFRAME();
-                        break;
-                    
-                    case 'POPFRAME':
-                        // // $argsArray = $this->getArgs($instructionArray[$i]);
-                        $instruction->PUSHFRAME();
-                        break;
+                case 'MOVE': 
+                    $instruction->MOVE($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1));
+                    break;
+                
+                case 'ADD': 
+                    $instruction->ADD($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'MUL': 
+                    $instruction->MUL($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'SUB': 
+                    $instruction->SUB($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'IDIV': 
+                    $instruction->IDIV($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'AND': 
+                    $instruction->AND($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'OR': 
+                    $instruction->OR($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'NOT': 
+                    $instruction->NOT($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1));
+                    break;
 
-                    case 'MOVE':
-                        // // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->MOVE($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1));
-                        break;
-                    
-                    case 'ADD':
-                        // // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->ADD($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-                    
-                    case 'MUL':
-                        // // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->MUL($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-                    
-                    case 'SUB':
-                        // // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->SUB($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-                    
-                    case 'IDIV':
-                        // // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->IDIV($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-                    
-                    case 'AND':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->AND($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-                    
-                    case 'OR':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->OR($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-                    
-                    case 'NOT':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->NOT($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1));
-                        break;
+                case 'LT': 
+                    $instruction->LT($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'GT': 
+                    $instruction->GT($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'EQ': 
+                    $instruction->EQ($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
+                
+                case 'TYPE': 
+                    $instruction->TYPE($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1));
+                    break;
+                
+                case 'CONCAT': 
+                    $instruction->CONCAT($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
 
-                    case 'LT':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->LT($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
+                case 'READ': 
+                    $instruction->READ($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1));
+                    break;
+
+                case 'WRITE': 
+                    $instruction->WRITE($argsArray->getArgAtIndex(0));
+                    break;
+
+                case 'DPRINT': 
+                    $instruction->DPRINT($argsArray->getArgAtIndex(0));
+                    break;
+
+                case 'POPS': 
+                    $instruction->POPS($argsArray->getArgAtIndex(0));
+                    break;
+
+                case 'PUSHS': 
+                    $instruction->PUSHS($argsArray->getArgAtIndex(0));
+                    break;
                     
-                    case 'GT':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->GT($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-                    
-                    case 'EQ':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->EQ($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-                    
-                    case 'TYPE':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->TYPE($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1));
-                        break;
-                    
-                    case 'CONCAT':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->CONCAT($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
+                case 'INT2CHAR': 
+                    $instruction->INT2CHAR($argsArray->getArgAtIndex(0),$argsArray->getArgAtIndex(1));
+                    break;
+                
+                case 'STRI2INT': 
+                    $instruction->STRI2INT($argsArray->getArgAtIndex(0),$argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
 
-                    case 'READ':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->READ($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1));
-                        break;
+                case 'GETCHAR': 
+                    $instruction->GETCHAR($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
 
-                    case 'WRITE':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->WRITE($argsArray->getArgAtIndex(0));
-                        break;
+                case 'SETCHAR': 
+                    $instruction->SETCHAR($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
+                    break;
 
-                    case 'DPRINT':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->DPRINT($argsArray->getArgAtIndex(0));
-                        break;
+                case 'STRLEN': 
+                    $instruction->STRLEN($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1));
+                    break;
 
-                    case 'POPS':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->POPS($argsArray->getArgAtIndex(0));
-                        break;
+                case 'LABEL': 
+                    break;
+                
+                case 'JUMP': 
+                    $i = $instruction->JUMP($argsArray->getArgAtIndex(0)['value'], $lable);
+                    break;
 
-                    case 'PUSHS':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->PUSHS($argsArray->getArgAtIndex(0));
-                        break;
-                        
-                    case 'INT2CHAR':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->INT2CHAR($argsArray->getArgAtIndex(0),$argsArray->getArgAtIndex(1));
-                        break;
-                    
-                    case 'STRI2INT':
-                        $instruction->STRI2INT($argsArray->getArgAtIndex(0),$argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
+                case 'JUMPIFEQ': 
+                    $i = $instruction->JUMPIFEQ($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2),  $lable);
+                    break;
+                
+                case 'JUMPIFNEQ': 
+                    $i = $instruction->JUMPIFNEQ($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2),  $lable);
+                    break;
 
-                    case 'GETCHAR':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->GETCHAR($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
+                case 'CALL': 
+                    $i = $instruction->CALL($argsArray->getArgAtIndex(0)['value'], $lable);
+                    break;
+                
+                case 'RETURN': 
+                    $i = $instruction->RETURN();
+                    break;
 
-                    case 'SETCHAR':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->SETCHAR($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2));
-                        break;
-
-                    case 'STRLEN':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $instruction->STRLEN($argsArray->getArgAtIndex(0), $argsArray->getArgAtIndex(1));
-                        break;
-
-                    case 'LABEL':
-                        break;
-                    
-                    case 'JUMP':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $i = $instruction->JUMP($argsArray->getArgAtIndex(0)['value'], $lable) - 1;
-                        $instruction->setPositionCounter($i);
-                        break;
-
-                    case 'JUMPIFEQ':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $i = $instruction->JUMPIFEQ($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2),  $lable) - 1;
-                        break;
-                    
-                    case 'JUMPIFNEQ':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $i = $instruction->JUMPIFNEQ($argsArray->getArgAtIndex(0)['value'], $argsArray->getArgAtIndex(1), $argsArray->getArgAtIndex(2),  $lable) - 1;
-                        break;
-
-                    case 'CALL':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $i = $instruction->CALL($argsArray->getArgAtIndex(0)['value'], $lable) - 1;
-                        $instruction->setPositionCounter($i);
-                        break;
-                    
-                    case 'RETURN':
-                        return ReturnCode::OK;
-
-                    case 'EXIT':
-                        // $argsArray = $instruction->getArgs($instructionArray[$i]);
-                        $exit = $instruction->EXIT($argsArray->getArgAtIndex(0));
-                        return $exit;
-                    
-                    default:
-                        return ReturnCode::INVALID_SOURCE_STRUCTURE;
-                }
-            } 
-            catch (Exception $e) 
-            {
-                echo "Error: " . $e->getMessage() . PHP_EOL;
-                return $e->getCode();
-            } 
-
-            // foreach($this->symbolTable as $symb=>$value)
-            // {
-            //     echo " - Name: $symb, Value: ";
-            //     echo $value === null ? "null" : $value;
-            //     echo "\n";
-            // }
-            // echo"\n\n";//
+                case 'EXIT': 
+                    $exit = $instruction->EXIT($argsArray->getArgAtIndex(0));
+                    return $exit;
+                
+                default: 
+                    throw new InvalidSourceException;
+            }
+            // echo PHP_EOL;
+            // $instruction->table->printFrames();
+            // print_r("FRAME STACK : ");
+            // print_r($instruction->table->frameStack);
+            // echo PHP_EOL;
+            
+            $i++;
+            $instruction->position->incrementPositionCounter();
         }
-
         return ReturnCode::OK;
     }
-
-
 }

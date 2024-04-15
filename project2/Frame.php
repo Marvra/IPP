@@ -2,20 +2,18 @@
 namespace IPP\Student;
 
 use IPP\Student\ExceptionExtended\VariableAccessException;
+use IPP\Student\ExceptionExtended\FrameAccessException;
 use IPP\Student\ExceptionExtended\SemanticErrorException;
-use IPP\Core\ReturnCode;
-use Exception;
 
-/**
- * Input reader that reads from a file
- */
 class Frame
 {
     public $globalFrame = [];
-    public $localFrame = [];
-    public $temporaryFrame = [];
+    public $localFrame = null;
+    public $temporaryFrame = null;
 
-    public function &getFrameVisibility($argValue): array 
+    public $frameStack = [];
+
+    public function &getFrameVisibility(string $argValue) : array 
     {
         $typeFrame = substr($argValue, 0, 2);
         switch($typeFrame)
@@ -24,79 +22,87 @@ class Frame
                 return $this->globalFrame;
             case "LF":
                 return $this->localFrame;
+                if ($this->temporaryFrame === null)
+                {
+                    throw new FrameAccessException;
+                }
             case "TF":
+                if ($this->temporaryFrame === null)
+                {
+                    throw new FrameAccessException;
+                }
                 return $this->temporaryFrame;
             default:
                 throw new SemanticErrorException;
         }
     }
 
-    public function defineVariable($varName) 
+    public function defineVariable(string $varName): void
     {
-        // Check if the variable already exists
         $table = &$this->getFrameVisibility($varName);
         if (array_key_exists($varName, $table)) {
             throw new SemanticErrorException;
         }
     
-        $table[$varName] = null;
-        // foreach ($table as $symb => &$val) {
-        // echo " - Name: $symb, Value: ";
-        // echo $val === null ? "null" : $val;
-        // echo ", Type: " . gettype($val);
-        // echo "\n";
-        // }
-        // echo "\n\n";
-    
-        return true;
+        $table[$varName] = array('value' => null, 'valueType' => null);
     }
     
-    public function assignValue($varName, $value)
+    public function assignValue(string $varName, mixed $value) : void
     {
-        // Check if the variable exists
         $table =& $this->getFrameVisibility($varName);
         
-        // Echo the content of the frame
-    
         if (!array_key_exists($varName, $table)) {
             throw new VariableAccessException;
         }
         if (is_array($value)) {
-            if ($value['type'] == 'int' || is_int($value['value'])) {
-                // echo "SOM INT KOKOT \n";
-                $table[$varName] = (int)$value['value'];
-            } else if ($value['type'] == 'string' || is_string($value['value'])) {
-                // echo "SOM STRING KOKOT \n";
-                $table[$varName] = (string)$value['value'];
-            } else if ($value['type'] == 'bool' || is_bool($value['value'])) {
-                // echo "SOM BOOL KOKOT \n";
-                $table[$varName] = (bool)$value['value'];
-            }
-            else
-            {
-                // echo "SOM KOKOT \n";
-                $table[$varName] = $value['value'];
-            }
-            // echo "SOM KOKOT \n";
-            // $table[$varName] = $value['value'];
+            switch ($value['valueType']) {
+                case 'int':
+                    $table[$varName]['value'] = (int)$value['value'];
+                    $table[$varName]['valueType'] = 'int';
+                    break;
+                case 'string':
+                    $table[$varName]['value'] = (string)$value['value'];
+                    $table[$varName]['valueType'] = 'string';
+                    break;
+                case 'bool':
+                    $table[$varName]['value'] = (bool)$value['value'];
+                    $table[$varName]['valueType'] = 'bool';
+                    break;
+                case 'nil':
+                    $table[$varName]['value'] = $value['value'];
+                    $table[$varName]['valueType'] = 'nil';
+                    break;
+                case 'var':
+                    $table[$varName]['value'] = $value['value'];
+                    $table[$varName]['valueType'] = 'var';
+                    break;
+                default:
+                    throw new SemanticErrorException;
+                }
+            
         } else {
-            // echo "SOM\n";
-            $table[$varName] = $value;
+            switch (gettype($value)) {
+                case 'integer':
+                    $table[$varName]['value'] = (int)$value;
+                    $table[$varName]['valueType'] = 'int';
+                    break;
+                case 'string':
+                    $table[$varName]['value'] = (string)$value;
+                    $table[$varName]['valueType'] = 'string';
+                    break;
+                case 'boolean':
+                    $table[$varName]['value'] = (bool)$value;
+                    $table[$varName]['valueType'] = 'bool';
+                    break;
+                default:
+                    $table[$varName]['value'] = $value;
+                    $table[$varName]['valueType'] = 'nil';
+                    break;
+                }
         }
-
-        // foreach ($table as $symb => &$val) {
-        // echo " - Name: $symb, Value: ";
-        // echo $val === null ? "null" : $val;
-        // echo ", Type: " . gettype($val);
-        // echo "\n";
-        // }
-        // echo "\n\n";
-        return true;
     }
 
-
-    // Function to get the value of a variable
-    public function getVariableValue($varName)
+    public function getVariable(string $varName) : array
     {
         // Check if the variable exists
         $table = &$this->getFrameVisibility($varName);
@@ -106,6 +112,63 @@ class Frame
 
         // Return the value of the variable
         return $table[$varName];
+    }
+    // Function to get the value of a variable
+    public function getVariableValue(string $varName) : mixed
+    {
+        // Check if the variable exists
+        $table = &$this->getFrameVisibility($varName);
+        if (!array_key_exists($varName, $table)) {
+            throw new VariableAccessException;
+        }
+
+        // Return the value of the variable
+        return $table[$varName]['value'];
+    }
+
+    public function getVariableValueType(string $varName) : string|null
+    {
+        // Check if the variable exists
+        $table = &$this->getFrameVisibility($varName);
+        if (!array_key_exists($varName, $table)) {
+            throw new VariableAccessException;
+        }
+
+        // Return the value of the variable
+        return $table[$varName]['valueType'];
+    }
+
+    public function printFrames() : void
+    {
+        echo "Global Frame: \n";
+        foreach ($this->globalFrame as $symb => &$val) {
+        echo " - Name: $symb, Value: ";
+        echo $val === null ? "null" : $val;
+        echo ", Type: " . gettype($val);
+        echo "\n";
+        }
+        echo "Local Frame: \n";
+        foreach ($this->localFrame as $symb => &$val) {
+        echo " - Name: $symb, Value: ";
+        echo $val === null ? "null" : $val;
+        echo ", Type: " . gettype($val);
+        echo "\n";
+        }
+        echo "Temporary Frame: \n";
+        if ($this->temporaryFrame === null) 
+        {
+            echo "null\n";
+        }
+        else
+        {
+            foreach ($this->temporaryFrame as $symb => &$val) {
+            echo " - Name: $symb, Value: ";
+            echo $val === null ? "null" : $val;
+            echo ", Type: " . gettype($val);
+            echo "\n";
+            }
+        }
+
     }
 
 }

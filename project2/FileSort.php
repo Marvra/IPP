@@ -1,19 +1,12 @@
 <?php
 namespace IPP\Student;
 
+use IPP\Student\ExceptionExtended\InvalidSourceException;
 use DOMDocument;
-use IPP\Core\Exception\InputFileException;
-use IPP\Core\Exception\NotImplementedException;
-use IPP\Core\Interface\InputReader;
-use IPP\Core\ReturnCode;
-use Exception;
 
-/**
- * Input reader that reads from a file
- */
 class FileSort
 {
-    public function SortByOrder($unsortedFile) : array 
+    public static function SortByOrder(DOMDocument $unsortedFile) : array 
     {
         $instructionsArray = iterator_to_array($unsortedFile->getElementsByTagName("instruction"));
 
@@ -22,7 +15,7 @@ class FileSort
             $orderB = intval($b->getAttribute("order"));
             $returnValue = $orderA - $orderB;
             if ($returnValue == 0 ||  $orderA <= 0 || $orderB <= 0) {
-                throw new Exception("Invalid order value", ReturnCode::INVALID_SOURCE_STRUCTURE);
+                throw new InvalidSourceException;
             }
             return $returnValue;
         };
